@@ -46,6 +46,10 @@ Pydantic, Python, or API-design decisions when introducing them.
 - Preserve the documented task API and opaque cursor contract unless a task
   explicitly changes them.
 - Let FastAPI generate OpenAPI documentation from route and schema definitions.
+- Treat `api_http_request_duration_seconds` and its `method`, normalized
+  `route`, and `status_code` labels as stable observability contracts.
+- Keep metric labels low-cardinality. Use route templates such as
+  `/tasks/{task_id}` and never task UUIDs, raw URLs, or query values.
 
 ## Tests and Quality
 

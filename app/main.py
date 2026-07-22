@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.adapters.postgresql.database import dispose_engine
+from app.metrics import ApiLatencyMiddleware
+from app.metrics import router as metrics_router
 from app.routes import health, root, tasks
 
 
@@ -27,6 +29,8 @@ def create_app() -> FastAPI:
     application.include_router(root.router)
     application.include_router(health.router)
     application.include_router(tasks.router)
+    application.include_router(metrics_router)
+    application.add_middleware(ApiLatencyMiddleware)
     return application
 
 
