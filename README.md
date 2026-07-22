@@ -43,7 +43,8 @@ uv run uvicorn app.main:app --reload
 ```
 
 The API is available at <http://127.0.0.1:8000>. Interactive documentation is
-available at <http://127.0.0.1:8000/docs>.
+available at <http://127.0.0.1:8000/docs>. Prometheus-format application
+metrics are exposed at <http://127.0.0.1:8000/metrics>.
 
 ## Endpoints
 
@@ -55,6 +56,7 @@ available at <http://127.0.0.1:8000/docs>.
 | `GET` | `/tasks` | Filter, sort, and paginate tasks. |
 | `GET` | `/tasks/{task_id}` | Return a task by UUID. |
 | `PUT` | `/tasks/{task_id}` | Update selected task fields. |
+| `GET` | `/metrics` | Export Prometheus API latency metrics. |
 
 The task list accepts `status`, `name`, `sort_by`, `sort_order`, `limit`, and
 `cursor` query parameters. Its response contains `items` and the opaque
@@ -98,17 +100,40 @@ Roll back one migration:
 uv run alembic downgrade -1
 ```
 
-## Docker Compose
+## Docker Compose and observability
 
-Build the API image, start PostgreSQL, apply migrations, and start the API:
+Build the API image and start PostgreSQL, migrations, the API, Prometheus, and
+Grafana:
 
 ```shell
 docker-compose up --build
 ```
 
 The `migrate` service runs once after PostgreSQL is healthy. The API starts only
-after that migration succeeds. Stop the stack with `docker-compose down`; add
-`--volumes` only when you intentionally want to delete local database data.
+after that migration succeeds. The local services are available at:
+
+- API and metrics: <http://127.0.0.1:8000> and
+  <http://127.0.0.1:8000/metrics>
+- Prometheus: <http://127.0.0.1:9090>
+- Grafana: <http://127.0.0.1:3000>
+
+Grafana uses the `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` values from
+`.env` (both default to `admin` for local development). Its Prometheus
+datasource and **FastAPI / API Latency** dashboard are provisioned
+automatically.
+
+Generate traffic against the API before expecting p95 values. The dashboard
+uses `histogram_quantile()` over the rate of histogram buckets in Grafana's
+selected time range, so p95 is an estimate determined by the configured bucket
+boundaries. It displays both each HTTP method/route combination and an aggregate
+across all measured endpoints.
+
+The `/metrics` endpoint is intentionally unauthenticated for this local Compose
+setup. Restrict it with network policy or a reverse proxy before exposing the
+application in production.
+
+Stop the stack with `docker-compose down`; add `--volumes` only when you
+intentionally want to delete local database, Prometheus, and Grafana data.
 
 The Dockerfile uses two Python stages. The builder creates a locked production
 virtual environment with uv. The runtime receives only that environment plus
