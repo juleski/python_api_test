@@ -48,6 +48,7 @@ Pydantic, Python, or API-design decisions when introducing them.
 
 ```shell
 uv lock --check
+uv run pre-commit run --all-files
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
