@@ -1,8 +1,9 @@
 # Python API Test
 
-A layered FastAPI starter project for practicing API development. The project
-uses Python 3.14.6 and [uv](https://docs.astral.sh/uv/) for Python, dependency,
-and virtual-environment management.
+A PostgreSQL-backed todo API built with FastAPI, a simple layered service and
+adapter structure, SQLAlchemy, and Alembic. The project uses Python 3.14.6 and
+[uv](https://docs.astral.sh/uv/) for Python, dependency, and virtual-environment
+management.
 
 ## Requirements
 
@@ -28,6 +29,13 @@ uv run pre-commit install --install-hooks
 
 ## Run the API
 
+Start PostgreSQL first and apply the database migrations:
+
+```shell
+docker-compose up -d db
+uv run alembic upgrade head
+```
+
 Start the development server with automatic reload:
 
 ```shell
@@ -43,6 +51,69 @@ available at <http://127.0.0.1:8000/docs>.
 | --- | --- | --- |
 | `GET` | `/` | Return a welcome message. |
 | `GET` | `/health` | Return the API health status. |
+| `POST` | `/tasks` | Create a task. |
+| `GET` | `/tasks` | Filter, sort, and paginate tasks. |
+| `GET` | `/tasks/{task_id}` | Return a task by UUID. |
+| `PUT` | `/tasks/{task_id}` | Update selected task fields. |
+
+The task list accepts `status`, `name`, `sort_by`, `sort_order`, `limit`, and
+`cursor` query parameters. Its response contains `items` and the opaque
+`next_cursor` to pass to the following request.
+
+## Configuration
+
+Copy `.env.example` to `.env` to override the safe local defaults. The API
+reads `DATABASE_URL`; Docker Compose builds it from the `POSTGRES_*` variables.
+Never commit `.env` or production credentials.
+
+```shell
+cp .env.example .env
+```
+
+The application layers are intentionally small: routes validate HTTP input and
+call `app/services/tasks.py`; the service owns task behavior and talks through
+a repository protocol; `app/adapters/postgresql/` contains SQLAlchemy-specific
+storage code.
+
+## Database migrations
+
+Alembic configuration and revisions live under the top-level `migrations/`
+directory, separate from the FastAPI package.
+
+Apply all migrations:
+
+```shell
+uv run alembic upgrade head
+```
+
+Create a migration after changing SQLAlchemy metadata:
+
+```shell
+uv run alembic revision --autogenerate -m "describe the schema change"
+```
+
+Roll back one migration:
+
+```shell
+uv run alembic downgrade -1
+```
+
+## Docker Compose
+
+Build the API image, start PostgreSQL, apply migrations, and start the API:
+
+```shell
+docker-compose up --build
+```
+
+The `migrate` service runs once after PostgreSQL is healthy. The API starts only
+after that migration succeeds. Stop the stack with `docker-compose down`; add
+`--volumes` only when you intentionally want to delete local database data.
+
+The Dockerfile uses two Python stages. The builder creates a locked production
+virtual environment with uv. The runtime receives only that environment plus
+the application and migrations, excluding dependency caches and development
+tools. It also runs as an unprivileged user.
 
 ## Development commands
 
@@ -59,6 +130,22 @@ Run the test suite:
 
 ```shell
 uv run pytest
+```
+
+Integration tests require an isolated PostgreSQL database. They apply and roll
+back Alembic migrations automatically:
+
+```shell
+docker-compose --profile test run --rm test
+```
+
+Compose creates the disposable `todo_test` database when its PostgreSQL volume
+is initialized. To run the same tests from the host, set `TEST_DATABASE_URL` to
+an isolated PostgreSQL database that the suite may migrate up and down. Run only
+the fast tests with:
+
+```shell
+uv run pytest -m "not integration"
 ```
 
 Lint the project:

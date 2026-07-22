@@ -28,6 +28,12 @@ Pydantic, Python, or API-design decisions when introducing them.
 - Use Python type annotations throughout application and test code.
 - Use explicit Pydantic response models for public JSON endpoints.
 - Keep API schemas separate from future database persistence models.
+- Keep task business logic and its small repository protocol in
+  `app/services/tasks.py`; routes should inject and call that service directly.
+- Keep SQLAlchemy models, queries, and session handling under `app/adapters/`
+  so database details do not leak into routes or schemas.
+- Keep Alembic configuration and revisions in the top-level `migrations/`
+  directory, separate from application code.
 
 ## API Conventions
 
@@ -37,6 +43,8 @@ Pydantic, Python, or API-design decisions when introducing them.
   parsing.
 - Preserve the existing `GET /` and `GET /health` behavior unless a task
   explicitly changes their contracts.
+- Preserve the documented task API and opaque cursor contract unless a task
+  explicitly changes them.
 - Let FastAPI generate OpenAPI documentation from route and schema definitions.
 
 ## Tests and Quality
