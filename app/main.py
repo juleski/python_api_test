@@ -1,8 +1,19 @@
 """Application entrypoint."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-from app.routes import health, root
+from app.adapters.postgresql.database import dispose_engine
+from app.routes import health, root, tasks
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Manage application-level resources."""
+    yield
+    await dispose_engine()
 
 
 def create_app() -> FastAPI:
@@ -11,9 +22,11 @@ def create_app() -> FastAPI:
         title="Python API Test",
         description="A FastAPI project for practicing API development.",
         version="0.1.0",
+        lifespan=lifespan,
     )
     application.include_router(root.router)
     application.include_router(health.router)
+    application.include_router(tasks.router)
     return application
 
 
